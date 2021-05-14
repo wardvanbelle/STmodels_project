@@ -22,7 +22,7 @@ def calc_F(board):
         # calculate the event floor board based on previous board
     return F 
 
-while stampede
+while stampede:
 
     board = cellular_stampede[-1,:,:]
 
