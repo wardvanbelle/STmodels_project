@@ -1,6 +1,7 @@
 # Function of this file is to be able to write and test functions line by line
 import numpy as np
 
+
 board_size = 30 # size of board 
 num_people = 100 # number of people
 exit_locs = ([int(board_size/2-2), int(board_size/2-1), int(board_size/2), int(board_size/2+1)], [0, 0, 0, 0]) # exit locations (middle of left wall)
@@ -9,6 +10,7 @@ S_wall = 500
 S_exit = 1
 mu = 1.5
 
+"""init_S: To be verified
 S = np.ones((board_size, board_size)) * np.inf # Initialise array full of +infinity since filling up S is based on selecting minimum values
 side_neighbour_mask = np.zeros((3, 3), dtype = bool)
 side_neighbour_mask[0, 1] = side_neighbour_mask[1, 0] = side_neighbour_mask[1, -1] = side_neighbour_mask[-1, 1] = True
@@ -53,3 +55,5 @@ S[0, :] = S[-1, :] = S_wall
 if obstacle_locs: # => If the list of obstacles isn't empty
     S[obstacle_locs] = S_wall
 S[exit_locs] = S_exit
+"""
+
