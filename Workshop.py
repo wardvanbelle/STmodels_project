@@ -1,7 +1,6 @@
 # Function of this file is to be able to write and test functions line by line
 import numpy as np
 
-
 board_size = 30 # size of board 
 num_people = 100 # number of people
 exit_locs = ([int(board_size/2-2), int(board_size/2-1), int(board_size/2), int(board_size/2+1)], [0, 0, 0, 0]) # exit locations (middle of left wall)
@@ -57,3 +56,8 @@ if obstacle_locs: # => If the list of obstacles isn't empty
 S[exit_locs] = S_exit
 """
 
+locations = []
+
+for x in range(1,board_size-1):
+    for y in range(1,board_size-1):
+        locations.append([x,y])
