@@ -186,7 +186,7 @@ def init_S(board_size, S_wall, S_exit, obstacle_locs, exit_locs, mu):
         next_cells = np.unique(next_cells, axis = 0).tolist() # Specify axis or the list of lists will be flattened to 1 list
         next_cells = [cell for cell in next_cells if not cell in done_cells]
 
-    S[S != S_wall] = np.amax(S[S != S_wall]) - S[S != S_wall]
+    S[S != np.inf] = np.amax(S[S != np.inf]) - S[S != np.inf]
 
     S[S == np.inf] = S_wall
     
@@ -271,9 +271,7 @@ def update_F(board_size, obstacle_locs, Srange):
     
     F = create_dist_mat(board_size, obstacle_locs)
 
-
     # give correct values to every point on the board
-
     F[F <= Srange] = -1*np.exp(1/F[F <= Srange])
     F[F > Srange] = 0
     
@@ -393,6 +391,8 @@ def move_direction(person,board,S,D,F,exit_locs,fallen_locs,directionmap,sight_r
 
     # TODO: optimize movement to erase the for loop and instead use matrix multiplication
 
+    possible_moves = [[y,x] for y in range(-1,2) for x in range(-1,2)]
+
     if person.state != 'C':
         y = person.location[0]
         x = person.location[1]
@@ -408,15 +408,16 @@ def move_direction(person,board,S,D,F,exit_locs,fallen_locs,directionmap,sight_r
                         else:
                             Iine = 1
 
-                        pmove[i-(y-1),j-(x-1)] = Iine*np.exp(ks*S[i,j])*(board[i,j] >= 0)*(board[i,j] != B_wall)
-
-                        if np.math.isnan(pmove[i-(y-1),j-(x-1)]):
-                                    pmove[i-(y-1),j-(x-1)] = 0
+                        pmove[i-(y-1),j-(x-1)] = Iine*np.exp(ks*S[i,j])*(board[i,j] >= B_exit)*(board[i,j] != B_wall)
 
                     else:
                         pmove[i-(y-1),j-(x-1)] = 0
             
-            move = list(np.asarray(np.unravel_index(np.argmax(pmove, axis=None), pmove.shape)) - [1,1]) # note: this gives a list in the format of [y_move,x_move]
+            pmove[np.isnan(pmove)] = 0
+            if np.sum(pmove) == 0: # No legal movements available
+                pmove[1,1] = 1 # Standing still is the only legal movement
+            pmove = pmove / np.sum(pmove)
+            move = possible_moves[np.random.choice(range(9), 1, p = pmove.flatten())[0]] # note: this gives a list in the format of [y_move,x_move]
 
         elif person.state == 'Un':
             for i in range(y-1,y+2):
@@ -426,15 +427,15 @@ def move_direction(person,board,S,D,F,exit_locs,fallen_locs,directionmap,sight_r
                             Iine = 1.2
                         else:
                             Iine = 1
-
-                        pmove[i-(y-1),j-(x-1)] = Iine*np.exp(ks*S[i,j] + kd*D[i,j])*(board[i,j] >= 0)*(board[i,j] != B_wall)
-                        if np.math.isnan(pmove[i-(y-1),j-(x-1)]):
-                                    pmove[i-(y-1),j-(x-1)] = 0                               
-
+                        pmove[i-(y-1),j-(x-1)] = Iine*np.exp(ks*S[i,j] + kd*D[i,j])*(board[i,j] >= B_exit)*(board[i,j] != B_wall)                               
                     else:
                         pmove[i-(y-1),j-(x-1)] = 0
             
-            move = list(np.asarray(np.unravel_index(np.argmax(pmove, axis=None), pmove.shape)) - [1,1]) # note: this gives a list in the format of [y_move,x_move]
+            pmove[np.isnan(pmove)] = 0
+            if np.sum(pmove) == 0: # No legal movements available
+                pmove[1,1] = 1 # Standing still is the only legal movement
+            pmove = pmove / np.sum(pmove)
+            move = possible_moves[np.random.choice(range(9), 1, p = pmove.flatten())[0]] # note: this gives a list in the format of [y_move,x_move]
 
         elif person.state == 'Ae':
             for i in range(y-1,y+2):
@@ -445,14 +446,16 @@ def move_direction(person,board,S,D,F,exit_locs,fallen_locs,directionmap,sight_r
                         else:
                             Iine = 1
                         alphaij = calc_tumble(person,sight_radius,ka,kc,board,[i,j])
-                        pmove[i-(y-1),j-(x-1)] = Iine*np.exp(ks*S[i,j])*(board[i,j] >= 0)*(board[i,j] != B_wall)*alphaij
-                        if np.math.isnan(pmove[i-(y-1),j-(x-1)]):
-                                    pmove[i-(y-1),j-(x-1)] = 0
+                        pmove[i-(y-1),j-(x-1)] = Iine*np.exp(ks*S[i,j])*(board[i,j] >= B_exit)*(board[i,j] != B_wall)*alphaij
 
                     else:
                         pmove[i-(y-1),j-(x-1)] = 0
             
-            move = list(np.asarray(np.unravel_index(np.argmax(pmove, axis=None), pmove.shape)) - [1,1]) # note: this gives a list in the format of [y_move,x_move]
+            pmove[np.isnan(pmove)] = 0
+            if np.sum(pmove) == 0: # No legal movements available
+                pmove[1,1] = 1 # Standing still is the only legal movement
+            pmove = pmove / np.sum(pmove)
+            move = possible_moves[np.random.choice(range(9), 1, p = pmove.flatten())[0]] # note: this gives a list in the format of [y_move,x_move]
 
         elif person.state == 'An':
             if person.evac_strat == 'S1':
@@ -463,16 +466,16 @@ def move_direction(person,board,S,D,F,exit_locs,fallen_locs,directionmap,sight_r
                                 Iine = 1.2
                             else:
                                 Iine = 1
-
                             alphaij = calc_tumble(person,sight_radius,ka,kc,board,[i,j])
-                            pmove[i-(y-1),j-(x-1)] = Iine*np.exp(ks*S[i,j] + kd*D[i,j] + kf*F[i,j])*(board[i,j] >= 0)*alphaij
-                            if np.math.isnan(pmove[i-(y-1),j-(x-1)]):
-                                    pmove[i-(y-1),j-(x-1)] = 0
-
+                            pmove[i-(y-1),j-(x-1)] = Iine*np.exp(ks*S[i,j] + kd*D[i,j] + kf*F[i,j])*(board[i,j] >= B_exit)*alphaij
                         else:
                             pmove[i-(y-1),j-(x-1)] = 0
                 
-                move = list(np.asarray(np.unravel_index(np.argmax(pmove, axis=None), pmove.shape)) - [1,1]) # note: this gives a list in the format of [y_move,x_move]
+                pmove[np.isnan(pmove)] = 0
+                if np.sum(pmove) == 0: # No legal movements available
+                    pmove[1,1] = 1 # Standing still is the only legal movement
+                pmove = pmove / np.sum(pmove)
+                move = possible_moves[np.random.choice(range(9), 1, p = pmove.flatten())[0]] # note: this gives a list in the format of [y_move,x_move]
 
             elif person.evac_strat == 'S2':
                 dist_mat = create_dist_mat(board_size, ([person.location[0]],[person.location[1]]))
@@ -605,7 +608,7 @@ sight_radius = 5 # perception radius for each person
 
 Srange = 8 # stampede range
 
-state_dic = {'C':1,'Ue':-3,'Un':-4,'Ae':-5,'An':-6}
+state_dic = {'C':1,'left':0,'Ue':-3,'Un':-4,'Ae':-5,'An':-6}
 # each time step == 0.3s
 
 # MAIN FUNCTION
@@ -679,7 +682,7 @@ while stampede:
         # if person has been evacuated, remove from person list
 
         if person.state == 'left':
-            np.delete(person_list,person)
+            np.delete(person_list,person_list == person)
         else:
             # calculate movement of each person 
             # or if person.state = 'C' calculate chance of getting up
