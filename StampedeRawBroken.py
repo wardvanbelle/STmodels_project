@@ -96,7 +96,7 @@ def init_board(board_size,num_people,exit_locs,sight_radius,state_dic, B_exit, B
 
     return board, np.array(person_list)
 
-def update_board(board,person_list,state_dic,chaos,B_exit):
+def update_board(board_size,person_list,state_dic,chaos,B_exit):
     """ populate board with size r x r with x people
         decide where exits are with e list of locations of exits
         set remaining walls to 500 
@@ -119,14 +119,19 @@ def update_board(board,person_list,state_dic,chaos,B_exit):
               -6: person in state An
         """
 
-    # set middle of board to zero
-    board[board <= state_dic['Ue']] = 0
+    board = np.ones((board_size,board_size), dtype = "int") * B_wall
+    board[1:-1,1:-1] = 0
 
-    # set position of people
+    # add the exit locations
+    board[exit_locs] = B_exit
+
     for person in person_list:
         if person.state != 'C':
             board[person.location[0], person.location[1]] = state_dic[person.state]
-        elif not(chaos):
+        elif chaos:
+            board[person.location[0], person.location[1]] += state_dic[person.state]
+            board[person.new_location[0], person.new_location[1]] += state_dic[person.state]
+        else:
             board[person.location[0], person.location[1]] = -1
             board[person.new_location[0], person.new_location[1]] = -1
     
@@ -441,6 +446,7 @@ def move_direction(person,person_list,board,S,D,F,exit_locs,fallen_locs,directio
                 pstand = 1/(np.exp(1)*np.math.factorial(person.time_down))
             else:
                 pstand = 0
+                
             if np.random.rand() <= pstand and person.body_count == 0:
                 person.state = 'Ue'
                 person = check_state(person,exit_locs,fallen_locs)
@@ -538,7 +544,6 @@ def move_direction(person,person_list,board,S,D,F,exit_locs,fallen_locs,directio
                         else:
                             pmove[i-(y-1),j-(x-1)] = 0
 
-
                 pmove[np.isnan(pmove)] = 0
                 if np.sum(pmove) == 0: # No legal movements available
                     pmove[1,1] = 1 # Standing still is the only legal movement
@@ -606,16 +611,6 @@ def move_direction(person,person_list,board,S,D,F,exit_locs,fallen_locs,directio
         person.direction = move
         person.new_location = [y + move[0], x + move[1]]
 
-        if board[y + move[0], x + move[1]] >= 1: # Fallen person on the location they are moving, so they trip
-            person.state = "C"
-            person.time_down = 0
-            person.direction = [2,2]
-            board[person.location[0], person.location[1]] += 1
-            board[person.new_location[0], person.new_location[1]] += 1
-            pinned_persons = [pinned_person for pinned_person in person_list if pinned_person.state == "C" if pinned_person.new_location == person.new_location]
-            for pinned_person in pinned_persons:
-                pinned_person.body_count += 1
-
     return person, board
 
 def check_stampede(people_list,chaos):
@@ -666,7 +661,7 @@ class Pedestrian:
 
 # parameters
 board_size = 30 # size of board 
-num_people = 100 # number of people
+num_people = 300 # number of people
 
 ##b Assigning locations as a tuple of a list with all y-coordinates and a list with all x-coordinates allows for multiple indexing
 exit_locs = ([int(board_size/2-2), int(board_size/2-1), int(board_size/2), int(board_size/2+1)], [0, 0, 0, 0]) # exit locations (middle of left wall)
@@ -680,7 +675,7 @@ B_exit = -2
 mu = 1.5
 
 Ts = 30 # occurrence time of the stampede
-Tc = Ts + 50 # chaos ending time
+Tc = Ts + 40 # chaos ending time
 
 kc = 0.5 # sensitivity parameter for tumble factor 
 ka = 1 # sensitivity parameter for tumble factor 
@@ -707,8 +702,9 @@ board, person_list = init_board(board_size,num_people,exit_locs,sight_radius,sta
 stampede_clip = np.zeros((0,board_size,board_size,3))
 temp = np.reshape(plot_room(board,state_dic,B_exit,B_wall),(1,board_size,board_size,3))
 stampede_clip = np.vstack((stampede_clip,temp))
+board_clip = np.copy(board).reshape((1,) + board.shape)
 
-time = 1
+time = 0
 
 stampede = True
 chaos = False
@@ -722,15 +718,16 @@ while stampede:
 
     if time == Ts:
         chaos = True
-        c_list = np.random.choice(range(len(person_list)), size=(3), replace = False)
+        c_list = np.random.choice(range(len(person_list)), size=(10), replace = False)
         for x in c_list:
             person_list[x].state = 'C'
             person_list[x].time_down = 0 
             person_list[x].direction = [2,2]
+            person_list[x].new_location = person_list[x].location
             c_loc = person_list[x].location
             board[c_loc[0],c_loc[1]] = 2*state_dic['C']
 
-        fallen_locs,board = update_board(board,person_list,state_dic,chaos,B_exit)
+        fallen_locs,board = update_board(board_size,person_list,state_dic,chaos,B_exit)
         F = update_F(board_size, fallen_locs, Srange)
 
     if time > Tc and chaos:
@@ -745,7 +742,7 @@ while stampede:
 
     if time > 1 and len(prev_locations) > 0:
         D = update_D(D, locations, prev_locations, diffusion_factor, decay_factor)
-        fallen_locs,board = update_board(board,person_list,state_dic,chaos,B_exit)
+        fallen_locs,board = update_board(board_size,person_list,state_dic,chaos,B_exit)
 
     #plt.imshow(board)
     #plt.show()
@@ -827,12 +824,17 @@ while stampede:
     # write current board to total
     temp = np.reshape(plot_room(board,state_dic,B_exit,B_wall),(1,board_size,board_size,3))
     stampede_clip = np.vstack((stampede_clip,temp))
+    board_clip = np.vstack((board_clip, board.reshape((1,) + board.shape)))
     time += 1
 
-    if time >= 490:
-        print("It's time")
-        plt.imshow(board)
-        plt.show()
+    if chaos:
+        if -1 in board[1:-1, 1:-1] or -2 in board[1:-1, 1:-1]:
+            print("ERROR, ERROR, ERROR")
+
+    # if time % 20 == 0:
+    #     showboard = plot_room(board,state_dic,B_exit,B_wall)
+    #     plt.imshow(showboard)
+    #     plt.show()
         
     if time == 500:
         break
