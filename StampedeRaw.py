@@ -684,7 +684,7 @@ B_wall = -1
 B_exit = -2
 mu = 1.5
 
-Ts = 30 # occurrence time of the stampede
+Ts = 10 # occurrence time of the stampede
 Tc = Ts + 50 # chaos ending time
 
 kc = 0.5 # sensitivity parameter for tumble factor 
