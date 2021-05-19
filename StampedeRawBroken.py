@@ -605,9 +605,6 @@ def move_direction(person,person_list,board,S,D,F,exit_locs,fallen_locs,directio
 
         person.direction = move
         person.new_location = [y + move[0], x + move[1]]
-        
-        if board[person.location[0], person.location[1]] <= state_dic["Ue"]:
-            board[person.location[0], person.location[1]] = 0
 
         if board[y + move[0], x + move[1]] >= 1: # Fallen person on the location they are moving, so they trip
             person.state = "C"
@@ -618,8 +615,6 @@ def move_direction(person,person_list,board,S,D,F,exit_locs,fallen_locs,directio
             pinned_persons = [pinned_person for pinned_person in person_list if pinned_person.state == "C" if pinned_person.new_location == person.new_location]
             for pinned_person in pinned_persons:
                 pinned_person.body_count += 1
-        else:
-            board[person.new_location[0], person.new_location[1]] = state_dic[person.state]
 
     return person, board
 
@@ -799,6 +794,20 @@ while stampede:
             np.random.shuffle(people_moving)
             picked = people_moving[0]
             picked.location = picked.new_location
+            people_moving = people_moving[1:]
+            
+            for people in people_moving:
+                if board[people.location[0], people.location[1]] > 0:
+                    people.new_location = people.location
+                    person.state = "C"
+                    person.time_down = 0
+                    person.direction = [2,2]
+                    board[person.location[0], person.location[1]] += 1
+                    board[person.new_location[0], person.new_location[1]] += 1
+                    pinned_persons = [pinned_person for pinned_person in person_list if pinned_person.state == "C" if pinned_person.new_location == person.new_location]
+                    for pinned_person in pinned_persons:
+                        pinned_person.body_count += 1
+
         
         for non_dupe in non_dupes:
             # set location to new locations
